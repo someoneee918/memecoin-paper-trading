@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyBuy, applySell, newBook, valuation } from "../lib/book.js";
+import { applyBuy, applySell, checkBook, newBook, valuation } from "../lib/book.js";
 
 const near = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} is not ${b}`);
 
@@ -72,4 +72,14 @@ test("valuation adds open value to cash and counts unpriced positions", () => {
   assert.equal(v.unpriced, 1);
   assert.equal(v.winRate, 100);
   near(v.rows.find((r) => r.mint === "A").unrealized, 2);
+});
+
+test("checkBook validates portfolio shape correctly", () => {
+  assert.equal(checkBook(null), false);
+  assert.equal(checkBook({}), false);
+  assert.equal(checkBook({ startSol: "10", cash: 10, positions: {}, trades: [] }), false);
+  assert.equal(checkBook({ startSol: 10, cash: "10", positions: {}, trades: [] }), false);
+  assert.equal(checkBook({ startSol: 10, cash: 10, positions: null, trades: [] }), false);
+  assert.equal(checkBook({ startSol: 10, cash: 10, positions: {}, trades: null }), false);
+  assert.equal(checkBook(newBook(10)), true);
 });

@@ -83,3 +83,10 @@ test("paper history validates count: non-positive or non-integer count exits 1, 
   assert.equal(def.status, 0);
   assert.equal(JSON.parse(def.stdout).length, 4);
 });
+
+test("paper reset rejects infinite balances like 1e999", () => {
+  const file = join(mkdtempSync(join(tmpdir(), "paper-")), "portfolio.json");
+  const r = run(["reset", "1e999", "--file", file]);
+  assert.equal(r.status, 1);
+  assert.match(r.stderr, /Starting balance must be a positive number of SOL/);
+});

@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { SOL_MINT, c, compact, footer, isAddress, main, parseArgs, pct, table } from "../lib/core.js";
 import { quote, tokenPrices } from "../lib/jupiter.js";
 import { resolveSymbol, symbolOf } from "../lib/tokens.js";
-import { applyBuy, applySell, newBook, valuation } from "../lib/book.js";
+import { applyBuy, applySell, checkBook, newBook, valuation } from "../lib/book.js";
 
 const HELP = `memecoin-paper-trading: practise Solana memecoin trades with fake SOL at real prices
 
@@ -33,8 +33,13 @@ function bookPath(args) {
 }
 function load(path) {
   if (!existsSync(path)) return newBook();
-  try { return JSON.parse(readFileSync(path, "utf8")); }
-  catch { throw new Error(`Cannot read ${path}. Fix or delete it, or run "paper reset".`); }
+  try {
+    const book = JSON.parse(readFileSync(path, "utf8"));
+    if (!checkBook(book)) throw new Error("Invalid shape");
+    return book;
+  } catch {
+    throw new Error(`Cannot read ${path}. Fix or delete it, or run "paper reset".`);
+  }
 }
 function save(path, book) {
   mkdirSync(dirname(path), { recursive: true });
@@ -72,7 +77,7 @@ main(async () => {
   // reset never reads the old file, so it can recover from a corrupt one.
   if (cmd === "reset") {
     const start = a1 !== undefined ? Number(a1) : 10;
-    if (!(start > 0)) throw new Error("Starting balance must be a positive number of SOL.");
+    if (!(Number.isFinite(start) && start > 0)) throw new Error("Starting balance must be a positive number of SOL.");
     save(path, newBook(start));
     return out({ reset: true, startSol: start, file: path }, () => console.log(`Fresh paper portfolio with ${sol(start, 2)} at ${c.dim(path)}`));
   }
