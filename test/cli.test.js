@@ -43,3 +43,43 @@ test("paper portfolio says when a position got no quote and counts as 0 in equit
   assert.match(stdout, /no route/);
   assert.match(stdout, /1 position got no quote, so it counts as 0 SOL in equity/);
 });
+
+test("paper history validates count: non-positive or non-integer count exits 1, valid count limits rows", () => {
+  const file = join(mkdtempSync(join(tmpdir(), "paper-")), "portfolio.json");
+  const sampleTrades = [
+    { time: 1000, side: "buy", mint: "mint1", symbol: "T1", tokens: 100, sol: 1, pnl: null },
+    { time: 2000, side: "buy", mint: "mint2", symbol: "T2", tokens: 200, sol: 2, pnl: null },
+    { time: 3000, side: "buy", mint: "mint3", symbol: "T3", tokens: 300, sol: 3, pnl: null },
+    { time: 4000, side: "sell", mint: "mint1", symbol: "T1", tokens: 100, sol: 1.5, pnl: 0.5 }
+  ];
+  const book = { version: 1, startSol: 10, cash: 8.5, positions: {}, trades: sampleTrades, createdAt: "2026-11-19T00:00:00Z" };
+  writeFileSync(file, JSON.stringify(book));
+
+  // Invalid count: negative number (-3)
+  const neg = run(["history", "-3", "--file", file]);
+  assert.equal(neg.status, 1);
+  assert.match(neg.stderr, /History count must be a whole number above 0/);
+
+  // Invalid count: zero (0)
+  const zero = run(["history", "0", "--file", file]);
+  assert.equal(zero.status, 1);
+  assert.match(zero.stderr, /History count must be a whole number above 0/);
+
+  // Invalid count: non-number (abc)
+  const nan = run(["history", "abc", "--file", file]);
+  assert.equal(nan.status, 1);
+  assert.match(nan.stderr, /History count must be a whole number above 0/);
+
+  // Valid count: 2 with --json should return exactly 2 newest trades
+  const valid = run(["history", "2", "--file", file, "--json"]);
+  assert.equal(valid.status, 0);
+  const rows = JSON.parse(valid.stdout);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].symbol, "T1"); // newest trade first
+  assert.equal(rows[1].symbol, "T3");
+
+  // Default count (omitted n) with --json should return all 4 trades
+  const def = run(["history", "--file", file, "--json"]);
+  assert.equal(def.status, 0);
+  assert.equal(JSON.parse(def.stdout).length, 4);
+});

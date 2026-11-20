@@ -138,7 +138,13 @@ main(async () => {
   }
 
   if (cmd === "history") {
-    const n = Number(a1) || 20;
+    let n = 20;
+    if (a1 !== undefined) {
+      n = Number(a1);
+      if (!Number.isInteger(n) || n <= 0) {
+        throw new Error("History count must be a whole number above 0.");
+      }
+    }
     const trades = book.trades.slice(-n).reverse();
     return out(trades, () => {
       if (!trades.length) return console.log(c.dim("No trades yet."));
